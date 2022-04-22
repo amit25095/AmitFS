@@ -1,4 +1,5 @@
 #include <afs/bootLoad.h>
+#include <afs/helper.h>
 
 #include <iostream>
 
@@ -6,11 +7,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-bool BootLoad::isFileExist(const char* filePath)
-{
-    return access(filePath, F_OK) == 0;
-}
 
 /*
 
@@ -27,12 +23,9 @@ Disk* BootLoad::load(const char* filePath)
     struct afsHeader header;
     Disk* disk = nullptr;
 
-    if (isFileExist(filePath))
+    if (Helper::isFileExist(filePath))
     {
-        fd = open(filePath, O_RDWR);
-
-        if (fd == -1)
-            throw std::runtime_error(std::string("open failed: ") + strerror(errno));
+        Helper::openExistingFile(filePath);
 
         read(fd, &header, sizeof(afsHeader));
         if (strncmp(header.magic, MAGIC, sizeof(header.magic)) != 0 || header.version != CURR_VERSION)
@@ -40,7 +33,7 @@ Disk* BootLoad::load(const char* filePath)
     
         close(fd);
 
-        disk = new Disk(filePath, header.blockSize, header.nblocks)
+        disk = new Disk(filePath, header.blockSize, header.nblocks);
     }
 
     return disk;
