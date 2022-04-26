@@ -1,5 +1,6 @@
 #include <afs/bootLoad.h>
 #include <afs/helper.h>
+#include <afs/constants.h>
 
 #include <iostream>
 
@@ -25,9 +26,10 @@ Disk* BootLoad::load(const char* filePath)
 
     if (Helper::isFileExist(filePath))
     {
-        Helper::openExistingFile(filePath);
+        fd = Helper::openExistingFile(filePath);
 
-        read(fd, &header, sizeof(afsHeader));
+        read(fd, &header, sizeof(struct afsHeader));
+
         if (strncmp(header.magic, MAGIC, sizeof(header.magic)) != 0 || header.version != CURR_VERSION)
             throw std::runtime_error("this file is not afs instance.");
     

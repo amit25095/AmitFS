@@ -10,7 +10,7 @@
 #include <fcntl.h>
 
 Disk::Disk(const char* filePath, const size_t blockSize, const size_t nblocks):
-    m_diskSize(blockSize * nblocks)
+    m_blockSize(blockSize), m_nblocks(nblocks)
 {
     if (!Helper::isFileExist(filePath))
         createDiskFile(filePath);
@@ -18,7 +18,7 @@ Disk::Disk(const char* filePath, const size_t blockSize, const size_t nblocks):
     else
         fd = Helper::openExistingFile(filePath);
 
-    m_fileMap = (unsigned char *)mmap(NULL, m_diskSize, PROT_READ | PROT_WRITE,
+    m_fileMap = (unsigned char *)mmap(NULL, m_blockSize * m_nblocks, PROT_READ | PROT_WRITE,
                     MAP_SHARED, fd, 0);
 
 	if (m_fileMap == (unsigned char *)-1)
@@ -27,7 +27,7 @@ Disk::Disk(const char* filePath, const size_t blockSize, const size_t nblocks):
 
 Disk::~Disk()
 {
-    munmap(m_fileMap, m_diskSize);
+    munmap(m_fileMap, getDiskSize());
     close(fd);
 }
 
@@ -38,7 +38,7 @@ void Disk::createDiskFile(const char* filePath)
         throw std::runtime_error(
             std::string("open-create failed: ") + strerror(errno));
 
-    if (lseek(fd, m_diskSize-1, SEEK_SET) == -1)
+    if (lseek(fd, getDiskSize()-1, SEEK_SET) == -1)
         throw std::runtime_error("Could not seek");
 
     ::write(fd, "\0", 1);
