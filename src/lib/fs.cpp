@@ -3,11 +3,16 @@
 #include <afs/helper.h>
 #include <afs/constants.h>
 
+#include <iostream>
 #include <cstring>
 
 FileSystem::FileSystem(const char* filePath, size_t blockSize, size_t nblocks)
 {
     m_disk = BootLoad::load(filePath);
+
+    blockSize = Helper::getCorrectSize(blockSize);
+    if (nblocks < MIN_BLOCKS_AMOUNT)
+        nblocks = MIN_BLOCKS_AMOUNT;
 
     if (!m_disk)
     {

@@ -22,3 +22,23 @@ int Helper::openExistingFile(const char* filePath)
 
     return fd;
 }
+
+size_t Helper::getCorrectSize(size_t inputSize)
+{
+    if (inputSize < MIN_SIZE)
+        return MIN_SIZE;
+
+    // decrement `n` (to handle the case when `n` itself
+    // is a power of 2)
+    inputSize = inputSize - 1;
+ 
+    // do till only one bit is left
+    while (inputSize & (inputSize - 1)) {
+        inputSize = inputSize & (inputSize - 1);        // unset rightmost bit
+    }
+ 
+    // `n` is now a power of two (less than `n`)
+ 
+    // return next power of 2
+    return inputSize << 1;
+}
