@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-Disk::Disk(const char* filePath, const size_t blockSize, const size_t nblocks):
+Disk::Disk(const char* filePath, const uint32_t blockSize, const uint32_t nblocks):
     m_blockSize(blockSize), m_nblocks(nblocks)
 {
     if (!Helper::isFileExist(filePath))

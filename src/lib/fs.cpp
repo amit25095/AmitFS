@@ -5,12 +5,14 @@
 
 #include <iostream>
 #include <cstring>
+#include <cmath>
 
-FileSystem::FileSystem(const char* filePath, size_t blockSize, size_t nblocks)
+FileSystem::FileSystem(const char* filePath, uint32_t blockSize, uint32_t nblocks)
 {
     m_disk = BootLoad::load(filePath);
 
     blockSize = Helper::getCorrectSize(blockSize);
+
     if (nblocks < MIN_BLOCKS_AMOUNT)
         nblocks = MIN_BLOCKS_AMOUNT;
 
@@ -26,11 +28,33 @@ FileSystem::~FileSystem()
     delete m_disk;
 }
 
+
+void FileSystem::format()
+{
+    // calculate the amounts of blocks needed for the blocks table.
+    size_t blockTableAmount = ceil((float)m_disk->getBlocksAmount() / m_disk->getBlockSize());
+    uint32_t blockSize = m_disk->getBlockSize();
+    m_inodeBlocks = ceil(m_disk->getBlocksAmount() / 10);
+
+    int defaultBlocks = 1 + blockTableAmount + m_inodeBlocks; // header + blocksTable + inodes table
+
+    setHeader();
+
+    char* blocksTable = new char[blockSize * blockTableAmount]();
+    for (int i = 0; i < defaultBlocks; i++)
+        blocksTable[i] = 0x01;
+
+    m_disk->write(1 * blockSize, blockSize, blocksTable);
+
+    delete[] blocksTable;
+}
+
+// =========== Helpers (private functions) =========== //
 void FileSystem::setHeader()
 {
     struct afsHeader header;
 
-    strncpy(header.magic, MAGIC, sizeof(header.magic));
+    memcpy(header.magic, MAGIC, sizeof(header.magic));
     header.version = CURR_VERSION;
     header.blockSize = m_disk->getBlockSize();
     header.nblocks = m_disk->getBlocksAmount();
@@ -38,7 +62,7 @@ void FileSystem::setHeader()
     m_disk->write(0, sizeof(header), (const char*)&header);
 }
 
-void FileSystem::format()
+unsigned long FileSystem::blockToAddr(unsigned int blockNum, unsigned int offset)
 {
-    setHeader();
+    return (blockNum * m_disk->getBlockSize()) + offset;
 }

@@ -8,6 +8,8 @@
 #include <cstring>
 #include <cerrno>
 
+#include <afs/constants.h>
+
 bool Helper::isFileExist(const char* filePath)
 {
     return access(filePath, F_OK) == 0;
@@ -23,7 +25,7 @@ int Helper::openExistingFile(const char* filePath)
     return fd;
 }
 
-size_t Helper::getCorrectSize(size_t inputSize)
+uint32_t Helper::getCorrectSize(uint32_t inputSize)
 {
     if (inputSize < MIN_SIZE)
         return MIN_SIZE;
