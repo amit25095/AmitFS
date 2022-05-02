@@ -1,6 +1,5 @@
 #include <afs/bootLoad.h>
 #include <afs/helper.h>
-#include <afs/constants.h>
 
 #include <iostream>
 
@@ -11,32 +10,30 @@
 
 /*
 
-Loads the file system if exist, if not creates the fs file and sets it super block.
+Loads the file system if exist, and get the superblock data
 
 @param filePath path to the disk file.
 
-@return disk object with the correct size accordint to the fs if the disk contains filesystem in it.
+@return superblock (header) struct with all the data from the disk or nullptr if the file doesn't exist/
 
 */
-Disk* BootLoad::load(const char* filePath)
+struct afsHeader* BootLoad::load(const char* filePath)
 {
     int fd = -1;
-    struct afsHeader header;
-    Disk* disk = nullptr;
+    struct afsHeader* header = nullptr;
 
     if (Helper::isFileExist(filePath))
     {
         fd = Helper::openExistingFile(filePath);
+        header = new struct afsHeader;
+        
+        read(fd, header, sizeof(struct afsHeader));
 
-        read(fd, &header, sizeof(struct afsHeader));
-
-        if (strncmp(header.magic, MAGIC, sizeof(header.magic)) != 0 || header.version != CURR_VERSION)
+        if (strncmp(header->magic, MAGIC, sizeof(header->magic)) != 0 || header->version != CURR_VERSION)
             throw std::runtime_error("this file is not afs instance.");
     
         close(fd);
-
-        disk = new Disk(filePath, header.blockSize, header.nblocks);
     }
 
-    return disk;
+    return header;
 }

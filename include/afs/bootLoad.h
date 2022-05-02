@@ -1,11 +1,11 @@
 #pragma once
 
-#include <afs/disk.h>
+#include <afs/constants.h>
 
 #include <vector>
 
 class BootLoad
 {
 public:
-    static Disk* load(const char* filePath);
+    static struct afsHeader* load(const char* filePath);
 };

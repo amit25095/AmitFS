@@ -44,7 +44,7 @@ void Disk::createDiskFile(const char* filePath)
     ::write(fd, "\0", 1);
 }
 
-void Disk::read(unsigned long addr, int size, char* ans)
+void Disk::read(unsigned long addr, int size, char* ans) const 
 {
     memcpy(ans, m_fileMap + addr, size);
 }
