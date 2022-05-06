@@ -119,7 +119,6 @@ void FileSystem::createFile(const std::string& path, bool isDir)
         uint32_t subdirAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 1));
 
         dirSibling file;
-        directoryData data;
 
         strncpy(file.name, fileName.c_str(), sizeof(file.name));
         file.indodeTableIndex = m_header->inodes - 1;
