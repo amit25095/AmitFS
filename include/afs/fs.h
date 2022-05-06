@@ -46,15 +46,20 @@ private:
     int inodeIndexToAddr(int inodeIndex) const;
     uint32_t pathToAddr(afsPath path) const;
     uint32_t getFreeDirChunkAddr(uint32_t dirAddr);
-
     unsigned int getFreeBlock() const;
-    void setHeader();
-    void createInode(inode node);
-    void reserveDBlock(unsigned int blockNum);
-    void createRootDir();
-    afsPath parsePath(std::string path_str) const;
     inode getRoot() const;
     dirSibling getSiblingData(const uint32_t dirAddr, int indx) const;
+    dirSibling getSiblingData(const uint32_t dirAddr, const std::string& siblingName) const;
+
+    void setHeader();
+
+    void createCurrAndPrevDir(unsigned int currentDirInode, unsigned int prevDirInode);
+    void createInode(inode node);
+    void createRootDir();
+    void addSibling(uint32_t dirAddr, dirSibling sibling);
+
+    void reserveDBlock(unsigned int blockNum);
+    afsPath parsePath(std::string path_str) const;
 
 
 public:

@@ -44,12 +44,10 @@ FileSystem::~FileSystem()
     delete[] m_dblocksTable;
 }
 
-
-/*
-
-Formats the default blocks the disk need to have (super block, blocks table, inodes table and root directory)
-
-*/
+/**
+ * @brief Formats the default blocks the disk need to have (super block, blocks table, inodes table and root directory)
+ * 
+ */
 void FileSystem::format()
 {
     uint32_t blockSize = m_disk->getBlockSize();
@@ -71,18 +69,15 @@ void FileSystem::format()
     memcpy(m_dblocksTable, dblocksTable, blockSize * m_dblocksTableAmount);
     
     // Create root directory
-    createRootDir();
+    createFile("/", true);
 }
 
-
-/*
-
-create a file or a directory in the file system.
-
-@param path The path to create the file/directory in.
-@param isDir Boolean which tells us if the file is directory or not.
-
-*/
+/**
+ * @brief create a file or a directory in the file system.
+ * 
+ * @param path The path to create the file/directory in. 
+ * @param isDir Boolean which tells us if the file is directory or not.
+ */
 void FileSystem::createFile(const std::string& path, bool isDir)
 {
     afsPath parsedPath = parsePath(path);
@@ -100,38 +95,44 @@ void FileSystem::createFile(const std::string& path, bool isDir)
     reserveDBlock(fileBlock);
     createInode(fileInode);
 
-
+    // Create current directory(.) and parent directory(..)
+    // in case the file is a directory.
     if (isDir)
     {
-        dirSibling curr;
-        directoryData currData = { 1 };
-        strncpy(curr.name, ".", sizeof(curr.name));
-        curr.indodeTableIndex = m_header->inodes - 1;
+        unsigned int currentInode = m_header->inodes - 1, prevInode;
 
-        m_disk->write(getFreeDirChunkAddr(fileInode.firstAddr), sizeof(dirSibling), (const char*)&curr);
-        m_disk->write(fileInode.firstAddr, sizeof(directoryData), (const char*)&currData);
+        if (path == "/")
+            prevInode = currentInode;
+
+        else
+        {
+            uint32_t prevParentAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 2));
+            dirSibling parent = getSiblingData(prevParentAddr, *(path.end() - 2));
+            prevInode = parent.indodeTableIndex;
+        }
+        createCurrAndPrevDir(currentInode, prevInode);
     }
 
-    uint32_t subdirAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 1));
+    // Add the new file as a sibling to the parent directory.
+    if (path != "/")
+    {
+        uint32_t subdirAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 1));
 
-    dirSibling file;
-    directoryData data;
+        dirSibling file;
+        directoryData data;
 
-    strncpy(file.name, fileName.c_str(), sizeof(file.name));
-    file.indodeTableIndex = m_header->inodes - 1;
+        strncpy(file.name, fileName.c_str(), sizeof(file.name));
+        file.indodeTableIndex = m_header->inodes - 1;
 
-    m_disk->write(getFreeDirChunkAddr(subdirAddr), sizeof(directorySibling), (const char*)&file);
-
-    m_disk->read(subdirAddr, sizeof(directoryData), (char*)&data);    
-    m_disk->write(subdirAddr, sizeof(directoryData), (const char*)&++data);    
+        addSibling(subdirAddr, file);
+    }
 }
 
 // =========== Helpers (private functions) =========== //
 
-/*
-
-write the superblock to the newly created disk
-
+/**
+* @brief write the superblock to the newly created disk
+*
 */
 void FileSystem::setHeader()
 {
@@ -145,37 +146,9 @@ void FileSystem::setHeader()
     m_disk->write(0, sizeof(struct afsHeader), (const char*)m_header);
 }
 
-/*
-
-create the root directory.
-
-*/
-void FileSystem::createRootDir()
-{
-    unsigned int rootBlock = getFreeBlock();
-    directoryData data = { 1 };
-
-    reserveDBlock(rootBlock);
-
-    inode root = {
-        .flags = 1 << InodeFlags::DIRTYPE,
-        .firstAddr = rootBlock * m_disk->getBlockSize()
-    };
-
-    createInode(root);
-    
-    dirSibling curr;
-    curr.indodeTableIndex = m_header->inodes - 1;
-    strncpy(curr.name, ".", sizeof(curr.name));
-
-    m_disk->write(getFreeDirChunkAddr(blockToAddr(rootBlock)), sizeof(dirSibling), (const char*)&curr);
-    m_disk->write(blockToAddr(rootBlock), sizeof(uint16_t), (const char*)&data); // write the siblings amount at the beginning of directory.
-}
-
-/*
-
-Find available data block to use
-
+/**
+* @brief Find available data block to use
+*
 */
 unsigned int FileSystem::getFreeBlock() const
 {
@@ -191,12 +164,11 @@ unsigned int FileSystem::getFreeBlock() const
     return found ? i - 1 : -1;
 }
 
-/*
-
-Write newly created inode into the disk.
-
-@param node The inode to write to the disk.
-
+/**
+* @brief Write newly created inode into the disk.
+*
+* @param node The inode to write to the disk.
+*
 */
 void FileSystem::createInode(inode node)
 {
@@ -205,12 +177,10 @@ void FileSystem::createInode(inode node)
     m_disk->write(0, sizeof(struct afsHeader), (const char*)m_header);
 }
 
-/*
-
-reserve data block in the blocks table.
-
-@param blockNum The number of block to reserve.
-
+/**
+* @brief reserve data block in the blocks table.
+*
+* @param blockNum The number of block to reserve.
 */
 void FileSystem::reserveDBlock(unsigned int blockNum)
 {
@@ -219,14 +189,13 @@ void FileSystem::reserveDBlock(unsigned int blockNum)
 }
 
 
-/*
+/**
+* @brief Convert block number into address on the disk.
+*
+* @param blockNum Number of block to get the address of.
+* @param offset Offset in the block.
 
-Convert block number into address on the disk.
-
-@param blockNum Number of block to get the address of.
-@param offset Offset in the block.
-
-@return The address of the block + the offset.
+* @return uint32_t The address of the block + the offset.
 
 */
 uint32_t FileSystem::blockToAddr(unsigned int blockNum, unsigned int offset) const
@@ -234,13 +203,12 @@ uint32_t FileSystem::blockToAddr(unsigned int blockNum, unsigned int offset) con
     return (blockNum * m_disk->getBlockSize()) + offset;
 }
 
-/*
-
-Convert inode index to address in the inode table.
-
-@param inodeIndex Index of the inode to get the address of.
-
-@return The address of the inode in the inode table.
+/**
+* @brief Convert inode index to address in the inode table.
+*
+* @param inodeIndex Index of the inode to get the address of.
+*
+* @return int The address of the inode in the inode table.
 
 */
 int FileSystem::inodeIndexToAddr(int inodeIndex) const
@@ -248,15 +216,13 @@ int FileSystem::inodeIndexToAddr(int inodeIndex) const
     return ((1 + m_dblocksTableAmount) * m_disk->getBlockSize()) + (sizeof(inode) * inodeIndex);
 }
 
-/*
-
-Parse path into parts (seperated by /)
-
-@param pathStr the path to parse.
-
-@return vector of strings with the path splitted.
-
-*/
+/**
+ * @brief parse the path into parts (seperated by /) 
+ * 
+ * @param pathStr the path to parse 
+ * 
+ * @return afsPath vector of strings with the path splitted 
+ */
 afsPath FileSystem::parsePath(std::string pathStr) const
 {
 	std::stringstream ss(pathStr);
@@ -269,6 +235,11 @@ afsPath FileSystem::parsePath(std::string pathStr) const
 	return ans;
 }
 
+/**
+ * @brief get the root directory 
+ * 
+ * @return FileSystem::inode the inode of the root directory. 
+ */
 FileSystem::inode FileSystem::getRoot() const
 {
     inode root;
@@ -278,6 +249,14 @@ FileSystem::inode FileSystem::getRoot() const
     return root;
 }
 
+/**
+ * @brief Get the sibling of a directory by the index of the sibling in the directory.
+ * 
+ * @param dirAddr the parent directory address of the sibling.
+ * @param indx the index of the sibling in the directory.
+ * 
+ * @return FileSystem::dirSibling the sibling with all the needed data.
+ */
 FileSystem::dirSibling FileSystem::getSiblingData(const uint32_t dirAddr, int indx) const
 {
     dirSibling sibling;
@@ -287,9 +266,45 @@ FileSystem::dirSibling FileSystem::getSiblingData(const uint32_t dirAddr, int in
     return sibling;
 }
 
-/*
-TODO: Document
-*/
+/**
+ * @brief Get the sibling of a directory by the name of the sibling in the directory.
+ * 
+ * @param dirAddr the parent directory address of the sibling.
+ * @param siblingName the name of the sibling in the directory.
+ * 
+ * @return FileSystem::dirSibling the sibling with all the needed data.
+ */
+FileSystem::dirSibling FileSystem::getSiblingData(const uint32_t dirAddr, const std::string& siblingName) const
+{
+    dirSibling sibling;
+    directoryData data;
+    bool found = false;
+
+    m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
+
+    for (uint16_t i = 2; i < data && !found; i++)
+    {
+        sibling = getSiblingData(dirAddr, i);
+        if (strncmp(sibling.name, siblingName.c_str(), sizeof(sibling.name)) == 0)
+            found = true;
+    }
+
+    if (!found)
+    {
+        sibling.indodeTableIndex = -1;
+    }
+
+    return sibling;
+}
+
+
+/**
+ * @brief convert path in the filesystem into an address.
+ * 
+ * @param path path to the file we want to get the address of. 
+ * 
+ * @return uint32_t the address of the requested path.
+ */
 uint32_t FileSystem::pathToAddr(afsPath path) const
 {
     inode curr;
@@ -326,9 +341,61 @@ uint32_t FileSystem::pathToAddr(afsPath path) const
     return curr.firstAddr;
 }
 
+/**
+ * @brief get free chunk address inside a directory. 
+ * 
+ * @param dirAddr the address of the dir. 
+ * 
+ * @return uint32_t the available chunk address.
+ */
 uint32_t FileSystem::getFreeDirChunkAddr(uint32_t dirAddr)
 {
     directoryData data;
     m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
     return dirAddr + sizeof(directoryData) + (sizeof(directorySibling) * data);
+}
+
+/**
+ * @brief add a sibling to a directory. 
+ * 
+ * @param dirAddr the address of the directory to add the sibling to. 
+ * @param sibling the sibling to add to the directory.
+ * 
+ */
+void FileSystem::addSibling(uint32_t dirAddr, dirSibling sibling)
+{
+    directoryData data;
+
+    m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
+    m_disk->write(getFreeDirChunkAddr(dirAddr), sizeof(dirSibling), (const char*)&sibling);
+    m_disk->write(dirAddr, sizeof(directoryData), (const char*)&(++data));
+}
+
+
+/**
+ * @brief create previous (..) and current (.) dir and add it to the needed directory 
+ * 
+ * @param currentDirInode the inode number of the current directory
+ * @param prevDirInode the inode number of the previous directory
+ * 
+ */
+void FileSystem::createCurrAndPrevDir(unsigned int currentDirInode, unsigned int prevDirInode)
+{
+    dirSibling curr, prev;
+    inode currentDir, prevDir;
+    directoryData data;
+
+    m_disk->read(inodeIndexToAddr(currentDirInode), sizeof(inode), (char*)&currentDir);
+    m_disk->read(inodeIndexToAddr(prevDirInode), sizeof(inode), (char*)&prevDir);
+    
+    m_disk->read(currentDir.firstAddr, sizeof(directoryData), (char*)&data);
+
+    curr.indodeTableIndex = currentDirInode;
+    strncpy(curr.name, ".", sizeof(curr.name));
+
+    prev.indodeTableIndex = prevDirInode;
+    strncpy(prev.name, "..", sizeof(prev.name));
+    
+    addSibling(currentDir.firstAddr, prev);
+    addSibling(currentDir.firstAddr, curr);
 }
