@@ -332,7 +332,7 @@ uint32_t FileSystem::pathToAddr(afsPath path) const
         if (j == data)
             throw std::runtime_error(std::string("No such file exist with name: ") + path[i]);
         
-        if(!(curr.flags & (1 << DIRTYPE)))
+        if(i != path.size() - 1 && !(curr.flags & (1 << DIRTYPE)))
             throw std::runtime_error("path contains file that is not a directory.");
     } 
 
