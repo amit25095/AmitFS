@@ -12,6 +12,7 @@
 
 typedef std::vector<std::string> afsPath;
 typedef uint16_t directoryData;
+typedef uint32_t address;
 
 class FileSystem
 {
@@ -33,7 +34,7 @@ private:
     {
         int flags;
         uint32_t fileSize;
-        uint32_t firstAddr;
+        address firstAddr;
     } inode;
 
     typedef struct directorySibling
@@ -44,19 +45,20 @@ private:
     uint32_t blockToAddr(unsigned int blockNum, unsigned int offset = 0) const;
     
     int inodeIndexToAddr(int inodeIndex) const;
-    uint32_t pathToAddr(afsPath path) const;
-    uint32_t getFreeDirChunkAddr(uint32_t dirAddr);
+    address pathToAddr(afsPath path) const;
+    address getFreeDirChunkAddr(address dirAddr);
     unsigned int getFreeBlock() const;
     inode getRoot() const;
-    dirSibling getSiblingData(const uint32_t dirAddr, int indx) const;
-    dirSibling getSiblingData(const uint32_t dirAddr, const std::string& siblingName) const;
+    inode pathToInode(afsPath path) const;
+    dirSibling getSiblingData(const address dirAddr, int indx) const;
+    dirSibling getSiblingData(const address dirAddr, const std::string& siblingName) const;
 
     void setHeader();
 
     void createCurrAndPrevDir(unsigned int currentDirInode, unsigned int prevDirInode);
     void createInode(inode node);
     void createRootDir();
-    void addSibling(uint32_t dirAddr, dirSibling sibling);
+    void addSibling(address dirAddr, dirSibling sibling);
 
     void reserveDBlock(unsigned int blockNum);
     afsPath parsePath(std::string path_str) const;
@@ -68,4 +70,5 @@ public:
 
     void format();
     void createFile(const std::string& path, bool isDir = false);
+    void appendContent(const std::string& filePath, std::string content);
 };
