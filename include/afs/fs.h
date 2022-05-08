@@ -42,6 +42,7 @@ private:
         char name[NAME_MAX_LEN]; 
         uint32_t indodeTableIndex;
     } dirSibling;
+    
     uint32_t blockToAddr(unsigned int blockNum, unsigned int offset = 0) const;
     
     int inodeIndexToAddr(int inodeIndex) const;

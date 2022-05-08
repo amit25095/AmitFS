@@ -158,7 +158,7 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
         fileInode.firstAddr = blockToAddr(dataBlock);
     }
 
-    fileAddr = fileInode.firstAddr;
+    fileAddr = currentAddr = fileInode.firstAddr;
 
     // get to the currently last part of the file.
     while (currentAddr != 0)
@@ -189,7 +189,7 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
         fileAddr = currentAddr;
     }
 
-    m_disk->write(currentAddr, content.size(), content.c_str());
+    m_disk->write(fileAddr, content.size(), content.c_str());
     fileInode.fileSize += content.size();
 
     afsPath path = parsePath(filePath);
