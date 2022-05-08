@@ -1,7 +1,7 @@
 #include <afs/helper.h>
 
-#include <string>
 #include <stdexcept>
+#include <sstream>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -15,6 +15,13 @@ bool Helper::isFileExist(const char* filePath)
     return access(filePath, F_OK) == 0;
 }
 
+/**
+ * @brief open a file in read/write mode. 
+ * 
+ * @param filePath the path of the file to open.
+ * 
+ * @return int the file descriptor of the opened file.
+ */
 int Helper::openExistingFile(const char* filePath)
 {
     int fd = open(filePath, O_RDWR);
@@ -25,6 +32,13 @@ int Helper::openExistingFile(const char* filePath)
     return fd;
 }
 
+/**
+ * @brief Converts the input to the closest power of 2. 
+ * 
+ * @param inputSize The input to convert.
+ * 
+ * @return uint32_t the input rounded to the closes power of 2.
+ */
 uint32_t Helper::getCorrectSize(uint32_t inputSize)
 {
     if (inputSize < MIN_SIZE)
@@ -43,4 +57,50 @@ uint32_t Helper::getCorrectSize(uint32_t inputSize)
  
     // return next power of 2
     return inputSize << 1;
+}
+
+/**
+* @brief Convert block number into address on the disk.
+*
+* @param blockNum Number of block to get the address of.
+* @param offset Offset in the block.
+
+* @return address The address of the block + the offset.
+
+*/
+address Helper::blockToAddr(uint32_t blockSize, unsigned int blockNum, unsigned int offset)
+{
+    return (blockNum * blockSize) + offset;
+}
+
+/**
+ * @brief Convert block nu 
+ * 
+ * @param blockSize 
+ * @param addr 
+ * @return unsigned int 
+ */
+unsigned int Helper::addrToBlock(uint32_t blockSize, uint32_t addr) 
+{
+    return addr / blockSize; 
+}
+
+/**
+ * @brief split string into parts by a delimiter. 
+ * 
+ * @param str the string to split
+ * @param delim Delimiter to split the string by 
+ * 
+ * @return std::vector<std::string> vector of strings with the string splitted 
+ */
+std::vector<std::string> Helper::splitString(const std::string& str, const char delim)
+{
+	std::stringstream ss(str);
+	std::string part;
+	afsPath ans;
+
+	while (std::getline(ss, part, delim))
+		ans.push_back(part);
+
+	return ans;
 }

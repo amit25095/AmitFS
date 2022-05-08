@@ -1,6 +1,13 @@
 #pragma once
 
+#include <vector>
+#include <string>
+
 #include <cstdint>
+
+typedef std::vector<std::string> afsPath;
+typedef uint16_t directoryData;
+typedef uint32_t address;
 
 constexpr char MAGIC[] = "AFS";
 constexpr uint8_t CURR_VERSION = 0x01;
