@@ -1,4 +1,5 @@
 #include <afs/helper.h>
+#include <afs/fsStructs.h>
 
 #include <stdexcept>
 #include <sstream>
@@ -80,9 +81,14 @@ address Helper::blockToAddr(uint32_t blockSize, unsigned int blockNum, unsigned 
  * @param addr 
  * @return unsigned int 
  */
-unsigned int Helper::addrToBlock(uint32_t blockSize, uint32_t addr) 
+unsigned int Helper::addrToBlock(uint32_t blockSize, address addr) 
 {
     return addr / blockSize; 
+}
+
+address Helper::getSiblingAddr(address parentAddr, unsigned int index)
+{
+    return parentAddr + sizeof(directoryData) + (sizeof(dirSibling) * index);
 }
 
 /**

@@ -136,7 +136,8 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
     address fileAddr = 0, currentAddr = fileAddr;
     uint32_t blockSize = m_disk->getBlockSize(), remainingForCurrentBlock = blockSize - (fileInode.fileSize % blockSize) - 4;
 
-    if (fileInode.flags & DIRTYPE) throw std::runtime_error("cant write content to a directory");
+    if (fileInode.flags & DIRTYPE) 
+        throw std::runtime_error("cant write content to a directory");
 
     // in case of empty file, reserve a data block for it's content
     if (fileInode.firstAddr == (address)-1)
@@ -194,11 +195,16 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
  */
 void FileSystem::deleteFile(const std::string& filePath)
 {
+    char reset[sizeof(dirSibling)] = { 0 };
     afsPath path = Helper::splitString(filePath);
     int fileInodeIdx = getSiblingData(pathToAddr(afsPath(path.begin(), path.end() - 1)), path[path.size() - 1]).indodeTableIndex;
     inode fileInode = pathToInode(path);
 
-    address currentAddr = fileInode.firstAddr;
+    address currentAddr = fileInode.firstAddr, parentAddress = pathToAddr(afsPath(path.begin(), path.end() - 1));
+    directoryData data;
+    dirSibling sibling, lastSibling;
+
+    m_disk->read(parentAddress, sizeof(directoryData), (char*)&data);
 
     fileInode.flags |= DELETED;
 
@@ -206,10 +212,29 @@ void FileSystem::deleteFile(const std::string& filePath)
     {
         m_dblocksTable->freeDBlock(Helper::addrToBlock(m_disk->getBlockSize(), currentAddr));
         m_disk->read(currentAddr + m_disk->getBlockSize() - 4, sizeof(address), (char*)&currentAddr);
+        m_disk->write(currentAddr + m_disk->getBlockSize() - 4, sizeof(address), (const char*)reset);
     }
 
     m_disk->write(inodeIndexToAddr(fileInodeIdx), sizeof(inode), (const char*)&fileInode);
 
+
+    address lastSiblingAddr = Helper::getSiblingAddr(parentAddress, data - 1);
+
+    lastSibling = getSiblingData(parentAddress, data - 1);
+    m_disk->write(lastSiblingAddr, sizeof(dirSibling), reset);
+
+    for (directoryData i = 0; i < data; i++)
+    {
+        sibling = getSiblingData(parentAddress, i);
+        if (strncmp(sibling.name, path.back().c_str(), sizeof(sibling.name)) == 0)
+        {
+            m_disk->write(Helper::getSiblingAddr(parentAddress, i), sizeof(dirSibling), (const char*)&lastSibling);
+            m_disk->write(lastSiblingAddr, sizeof(dirSibling), reset);
+            break;
+        }
+    }
+
+    m_disk->write(parentAddress, sizeof(directoryData), (const char*)&(--data));
 }
 
 // =========== Helpers (private functions) =========== //
