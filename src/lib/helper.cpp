@@ -1,6 +1,7 @@
 #include <afs/helper.h>
 #include <afs/fsStructs.h>
 
+#include <iostream>
 #include <stdexcept>
 #include <sstream>
 
@@ -91,7 +92,20 @@ address Helper::getSiblingAddr(address parentAddr, unsigned int index)
     return parentAddr + sizeof(directoryData) + (sizeof(dirSibling) * index);
 }
 
+address Helper::getLastFileBlock(const Disk* disk, address fileAddr)
+{
+    address currentAddr = fileAddr;
+    while (currentAddr != 0)
+    {
+        fileAddr = currentAddr;
+        disk->read(currentAddr + disk->getBlockSize() - sizeof(address), sizeof(address), (char*)&currentAddr);
+    }
+
+    return fileAddr;
+}
+
 /**
+ * 
  * @brief split string into parts by a delimiter. 
  * 
  * @param str the string to split
