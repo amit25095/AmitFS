@@ -6,15 +6,24 @@
 #include <cstdint>
 
 typedef std::vector<std::string> afsPath;
+
 typedef uint16_t directoryData;
 typedef uint32_t address;
-
 constexpr char MAGIC[] = "AFS";
 constexpr uint8_t CURR_VERSION = 0x01;
+
 constexpr uint32_t MIN_SIZE = 512;
 constexpr uint32_t MIN_BLOCKS_AMOUNT = 512;
 constexpr int NAME_MAX_LEN = 28;
-    
+typedef struct dirListEntry
+{
+    char name[NAME_MAX_LEN];
+    uint32_t fileSize;
+    bool isDirectory;
+} dirListEntry;
+
+typedef std::vector<dirListEntry> dirList;
+
 struct __attribute__((__packed__)) afsHeader
 {
     char magic[3];

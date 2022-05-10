@@ -231,6 +231,75 @@ void FileSystem::deleteFile(const std::string& filePath)
     m_disk->write(parentAddress, sizeof(directoryData), (const char*)&(--data));
 }
 
+/**
+ * @brief Get content of a file
+ *
+ * @param filePath path to the file to get the content of
+ *
+ * @return std::string The content of the requested file.
+ */
+std::string FileSystem::getContent(const std::string &filePath) const
+{
+    inode fileInode = pathToInode(Helper::splitString(filePath));
+    address currentAddress = fileInode.firstAddr;
+    std::string fileContent = "", temp = "";
+    uint32_t size = fileInode.fileSize, blockSize = m_disk->getBlockSize();
+    char* buffer = new char[blockSize - sizeof(address)];
+
+    while (currentAddress != 0)
+    {
+        if (size > blockSize)
+        {
+            m_disk->read(currentAddress, blockSize - sizeof(address), buffer);
+            temp.assign(buffer, blockSize - sizeof(address));
+            size -= (blockSize - sizeof(address));
+        }
+
+        else
+        {
+            delete[] buffer;
+            buffer = new char[size];
+            m_disk->read(currentAddress, size, buffer);
+            temp.assign(buffer, size);
+        }
+
+        fileContent += temp;
+        m_disk->read(currentAddress + blockSize - sizeof(address), sizeof(address), (char*)&currentAddress);
+    }
+
+    return fileContent;
+}
+
+dirList FileSystem::listDir(const std::string &dirPath) const
+{
+    dirList list;
+    inode dirInode = pathToInode(Helper::splitString(dirPath)), siblingInode;
+    directoryData data;
+
+    if (dirInode.flags & DELETED)
+        throw std::runtime_error("cant list deleted directory");
+
+    if (dirInode.flags & FILETYPE)
+        throw std::runtime_error("cannot list a file that is not a directory!");
+
+    m_disk->read(dirInode.firstAddr, sizeof(directoryData), (char*)&data);
+
+    for (directoryData i = 0; i < data; i++)
+    {
+        dirSibling sibling = getSiblingData(dirInode.firstAddr, i);
+        m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&siblingInode);
+
+        dirListEntry entry;
+        strncpy(entry.name, sibling.name, sizeof(sibling.name));
+        entry.isDirectory = siblingInode.flags & DIRTYPE;
+        entry.fileSize = siblingInode.fileSize;
+
+        list.push_back(entry);
+    }
+
+    return list;
+}
+
 // =========== Helpers (private functions) =========== //
 
 /**
@@ -302,8 +371,18 @@ inode FileSystem::getRoot() const
 dirSibling FileSystem::getSiblingData(const address dirAddr, const int indx) const
 {
     dirSibling sibling;
+    uint16_t maxSiblingsPerBlock = (m_disk->getBlockSize() - sizeof(directoryData) - sizeof(address)) / sizeof(dirSibling);
+    unsigned int blockNum = indx / maxSiblingsPerBlock;
+    address currentAddr = dirAddr;
+    int offset = sizeof(dirSibling) * (indx - maxSiblingsPerBlock * blockNum);
+
+    if (blockNum == 0)
+        offset += sizeof(directoryData);
+
+    for (unsigned int i = 0; i < blockNum; i++)
+        m_disk->read(currentAddr + m_disk->getBlockSize() - sizeof(address), sizeof(address), (char*)&currentAddr);
     
-    m_disk->read((dirAddr + sizeof(directoryData)) + (indx * sizeof(dirSibling)), sizeof(dirSibling), (char*)&sibling);
+    m_disk->read(currentAddr + offset, sizeof(dirSibling), (char*)&sibling);
     
     return sibling;
 }
@@ -467,9 +546,9 @@ void FileSystem::createCurrAndPrevDir(const unsigned int currentDirInode, const 
 
     prev.indodeTableIndex = prevDirInode;
     strncpy(prev.name, "..", sizeof(prev.name));
-    
-    addSibling(currentDir.firstAddr, prev);
+
     addSibling(currentDir.firstAddr, curr);
+    addSibling(currentDir.firstAddr, prev);
 }
 
 /**
@@ -481,6 +560,9 @@ void FileSystem::createCurrAndPrevDir(const unsigned int currentDirInode, const 
  */
 inode FileSystem::pathToInode(const afsPath path) const 
 {
+    if (path[path.size() - 1] == "/")
+        return getRoot();
+
     afsPath parentPath = afsPath(path.begin(), path.end() - 1);
     address parentAddr = pathToAddr(parentPath);
 
@@ -491,42 +573,4 @@ inode FileSystem::pathToInode(const afsPath path) const
     m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&siblingInode);
 
     return siblingInode;
-}
-
-/**
- * @brief Get content of a file
- *
- * @param filePath path to the file to get the content of
- *
- * @return std::string The content of the requested file.
- */
-std::string FileSystem::getContent(const std::string &filePath) {
-    inode fileInode = pathToInode(Helper::splitString(filePath));
-    address currentAddress = fileInode.firstAddr;
-    std::string fileContent = "", temp = "";
-    uint32_t size = fileInode.fileSize, blockSize = m_disk->getBlockSize();
-    char* buffer = new char[blockSize - sizeof(address)];
-
-    while (currentAddress != 0)
-    {
-        if (size > blockSize)
-        {
-            m_disk->read(currentAddress, blockSize - sizeof(address), buffer);
-            temp.assign(buffer, blockSize - sizeof(address));
-            size -= (blockSize - sizeof(address));
-        }
-
-        else
-        {
-            delete[] buffer;
-            buffer = new char[size];
-            m_disk->read(currentAddress, size, buffer);
-            temp.assign(buffer, size);
-        }
-
-        fileContent += temp;
-        m_disk->read(currentAddress + blockSize - sizeof(address), sizeof(address), (char*)&currentAddress);
-    }
-
-    return fileContent;
 }

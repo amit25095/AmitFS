@@ -1,5 +1,7 @@
 #pragma once
 
+#include <afs/constants.h>
+
 enum InodeFlags
 {
     DELETED = 1 << 0,

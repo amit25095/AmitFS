@@ -39,5 +39,6 @@ public:
     void createFile(const std::string& path, const bool isDir = false);
     void appendContent(const std::string& filePath, std::string content);
     void deleteFile(const std::string& filePath);
-    std::string getContent(const std::string& filePath);
+    std::string getContent(const std::string& filePath) const;
+    dirList listDir(const std::string& dirPath) const;
 };
