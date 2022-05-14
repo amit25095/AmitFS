@@ -30,7 +30,6 @@ FileSystem::FileSystem(const char* filePath, uint32_t blockSize, uint32_t nblock
         m_disk = new Disk(filePath, m_header->blockSize, m_header->nblocks);
         m_dblocksTable = new BlocksTable(m_disk);
     }
-
 }
 
 FileSystem::~FileSystem()
@@ -67,11 +66,18 @@ void FileSystem::format()
  * @param path The path to create the file/directory in. 
  * @param isDir Boolean which tells us if the file is directory or not.
  */
-void FileSystem::createFile(const std::string& path, const bool isDir)
-{
+void FileSystem::createFile(const std::string& path, const bool isDir) {
     afsPath parsedPath = Helper::splitString(path);
+    address fileAddr = 0;
     std::string fileName = parsedPath[parsedPath.size() - 1];
 
+    try
+    {
+        fileAddr = pathToAddr(parsedPath);
+    }
+    catch (std::exception &e) {}
+
+    if (fileAddr != 0) throw std::runtime_error("File with this name already exist");
 
     // create inode for the file.
     inode fileInode = {
@@ -250,8 +256,8 @@ std::string FileSystem::getContent(const std::string &filePath) const
     {
         if (size > blockSize)
         {
-            m_disk->read(currentAddress, blockSize - sizeof(address), buffer);
-            temp.assign(buffer, blockSize - sizeof(address));
+            m_disk->read(currentAddress, size % (blockSize - sizeof(address)), buffer);
+            temp.assign(buffer, size % (blockSize - sizeof(address)));
             size -= (blockSize - sizeof(address));
         }
 
