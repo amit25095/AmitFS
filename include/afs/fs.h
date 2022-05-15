@@ -17,7 +17,7 @@ private:
     struct afsHeader* m_header;
     BlocksTable* m_dblocksTable;
     
-    int inodeIndexToAddr(const int inodeIndex) const;
+    address inodeIndexToAddr(const int inodeIndex) const;
     address pathToAddr(const afsPath path) const;
     address getFreeDirChunkAddr(const address dirAddr);
     inode getRoot() const;

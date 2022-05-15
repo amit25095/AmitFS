@@ -1,9 +1,8 @@
 #include <iostream>
-#include <exception>
+#include <afshell/shell.h>
 
-#include <afs/fs.h>
-
-int main()
-{    
+int main(int argc, char* argv[])
+{
+    Shell shell(argc, argv);
     return 0;
 }

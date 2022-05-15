@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 
+#include <cstring>
 #include <cstdint>
 
 typedef std::vector<std::string> afsPath;
@@ -17,6 +18,11 @@ constexpr uint32_t MIN_BLOCKS_AMOUNT = 512;
 constexpr int NAME_MAX_LEN = 28;
 typedef struct dirListEntry
 {
+    dirListEntry(char* fileName, uint32_t size, bool isDir):
+        fileSize(size), isDirectory(isDir)
+    {
+        strncpy(name, fileName, NAME_MAX_LEN);
+    }
     char name[NAME_MAX_LEN];
     uint32_t fileSize;
     bool isDirectory;

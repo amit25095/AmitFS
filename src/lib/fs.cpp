@@ -119,11 +119,7 @@ void FileSystem::createFile(const std::string& path, const bool isDir) {
     if (path != "/")
     {
         address parentAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 1));
-
-        dirSibling file;
-
-        strncpy(file.name, fileName.c_str(), sizeof(file.name));
-        file.indodeTableIndex = m_header->inodes - 1;
+        dirSibling file(fileName.c_str(), m_header->inodes - 1);
 
         addSibling(parentAddr, file);
     }
@@ -295,11 +291,7 @@ dirList FileSystem::listDir(const std::string &dirPath) const
         dirSibling sibling = getSiblingData(dirInode.firstAddr, i);
         m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&siblingInode);
 
-        dirListEntry entry;
-        strncpy(entry.name, sibling.name, sizeof(sibling.name));
-        entry.isDirectory = siblingInode.flags & DIRTYPE;
-        entry.fileSize = siblingInode.fileSize;
-
+        dirListEntry entry(sibling.name, siblingInode.flags & DIRTYPE, siblingInode.fileSize);
         list.push_back(entry);
     }
 
@@ -346,7 +338,7 @@ void FileSystem::createInode(const inode node)
 * @return int The address of the inode in the inode table.
 
 */
-int FileSystem::inodeIndexToAddr(const int inodeIndex) const
+address FileSystem::inodeIndexToAddr(const int inodeIndex) const
 {
     return ((1 + m_dblocksTable->getTableBlocksAmount()) * m_disk->getBlockSize()) + (sizeof(inode) * inodeIndex);
 }
