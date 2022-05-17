@@ -174,7 +174,7 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
         fileAddr = currentAddr;
     }
 
-    m_disk->write(fileAddr, content.size(), content.c_str());
+    m_disk->write(fileAddr + (blockSize - 4) - remainingForCurrentBlock, content.size(), content.c_str());
     fileInode.fileSize += content.size();
 
     afsPath path = Helper::splitString(filePath);
@@ -291,7 +291,7 @@ dirList FileSystem::listDir(const std::string &dirPath) const
         dirSibling sibling = getSiblingData(dirInode.firstAddr, i);
         m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&siblingInode);
 
-        dirListEntry entry(sibling.name, siblingInode.flags & DIRTYPE, siblingInode.fileSize);
+        dirListEntry entry(sibling.name, siblingInode.fileSize, siblingInode.flags & DIRTYPE);
         list.push_back(entry);
     }
 
