@@ -13,6 +13,10 @@ enum InodeFlags
 
 typedef struct inode
 {
+    inode() {}
+    inode(bool isDir):
+        flags(isDir ? DIRTYPE : FILETYPE), fileSize(0), firstAddr((address)-1) {}
+    
     int flags;
     uint32_t fileSize;
     address firstAddr;

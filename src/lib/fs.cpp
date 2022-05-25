@@ -30,6 +30,8 @@ FileSystem::FileSystem(const char* filePath, uint32_t blockSize, uint32_t nblock
         m_disk = new Disk(filePath, m_header->blockSize, m_header->nblocks);
         m_dblocksTable = new BlocksTable(m_disk);
     }
+
+    m_cwd = getRoot();
 }
 
 FileSystem::~FileSystem()
@@ -80,11 +82,7 @@ void FileSystem::createFile(const std::string& path, const bool isDir) {
     if (fileAddr != 0) throw std::runtime_error("File with this name already exist");
 
     // create inode for the file.
-    inode fileInode = {
-        .flags = isDir ? DIRTYPE : FILETYPE,
-        .fileSize = 0,
-        .firstAddr = (address)-1
-    };
+    inode fileInode(isDir);
 
     if (!isDir) 
         createInode(fileInode);
@@ -401,7 +399,7 @@ dirSibling FileSystem::getSiblingData(const address dirAddr, const std::string& 
 
     m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
 
-    for (uint16_t i = 2; i < data && !found; i++)
+    for (uint16_t i = 0; i < data && !found; i++)
     {
         sibling = getSiblingData(dirAddr, i);
         if (strncmp(sibling.name, siblingName.c_str(), sizeof(sibling.name)) == 0)
@@ -423,17 +421,19 @@ dirSibling FileSystem::getSiblingData(const address dirAddr, const std::string& 
  * 
  * @return address the address of the requested path.
  */
-address FileSystem::pathToAddr(const afsPath path) const
+address FileSystem::pathToAddr(afsPath path) const
 {
     inode curr;
     directoryData data;
     directorySibling sibling;
 
-    int currentSubDir = 1;
     uint16_t i; 
     int j;
 
-    curr = getRoot();
+    if (path[path.size() - 1] == "/")
+        path.pop_back();
+
+    curr = path[0] == "/" ? getRoot() : m_cwd;
 
     m_disk->read(curr.firstAddr, sizeof(directoryData), (char*)&data);
 
@@ -442,9 +442,11 @@ address FileSystem::pathToAddr(const afsPath path) const
         for (j = 0; j < data; j++)
         {
             sibling = getSiblingData(curr.firstAddr, j);
-            if (std::string(sibling.name) == path[currentSubDir])
+            if (std::string(sibling.name) == path[i])
             {
                 m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&curr);
+                if (i < path.size() - 1)
+                    m_disk->read(curr.firstAddr, sizeof(data), (char*)&data);
                 break;
             }
         }
@@ -558,7 +560,7 @@ void FileSystem::createCurrAndPrevDir(const unsigned int currentDirInode, const 
  */
 inode FileSystem::pathToInode(const afsPath path) const 
 {
-    if (path[path.size() - 1] == "/")
+    if (path.size() == 1 && path[path.size() - 1] == "/")
         return getRoot();
 
     afsPath parentPath = afsPath(path.begin(), path.end() - 1);

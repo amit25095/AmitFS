@@ -21,6 +21,7 @@ private:
     static void listFiles(FileSystem* fs, args argv);
     static void addContent(FileSystem* fs, args argv);
     static void showContent(FileSystem* fs, args argv);
+    static void changeDirectory(FileSystem* fs, args argv);
 
 public:
     static void handleCommand(FileSystem* fs, const std::string& cmd, args argv);

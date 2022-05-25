@@ -7,12 +7,13 @@
 #include <limits>
 
 handlers CommandHandlers::handlersMap = {
+    {"ls",    CommandHandlers::listFiles},
+    {"cd",    CommandHandlers::changeDirectory},
+    {"rm",    CommandHandlers::removeFile},
+    {"cat",   CommandHandlers::showContent},
+    {"edit",  CommandHandlers::addContent},
     {"touch", CommandHandlers::createFile},
-    {"rm", CommandHandlers::removeFile},
-    {"mkdir", CommandHandlers::createDirectory},
-    {"ls", CommandHandlers::listFiles},
-    {"cat", CommandHandlers::showContent},
-    {"edit", CommandHandlers::addContent},
+    {"mkdir", CommandHandlers::createDirectory}
 };
 
 void CommandHandlers::handleCommand(FileSystem* fs, const std::string& cmd, args argv)
@@ -100,4 +101,9 @@ void CommandHandlers::showContent(FileSystem* fs, args argv)
 
     if (!content.empty())
         std::cout << '\n';
+}
+
+void CommandHandlers::changeDirectory(FileSystem* fs, args argv)
+{
+    
 }

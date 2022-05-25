@@ -16,12 +16,13 @@ private:
     Disk* m_disk;
     struct afsHeader* m_header;
     BlocksTable* m_dblocksTable;
+    inode m_cwd;
     
     address inodeIndexToAddr(const int inodeIndex) const;
     address pathToAddr(const afsPath path) const;
     address getFreeDirChunkAddr(const address dirAddr);
     inode getRoot() const;
-    inode pathToInode(const afsPath path) const;
+    inode pathToInode(afsPath path) const;
     dirSibling getSiblingData(const address dirAddr, const int indx) const;
     dirSibling getSiblingData(const address dirAddr, const std::string& siblingName) const;
 

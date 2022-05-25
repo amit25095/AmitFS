@@ -128,5 +128,10 @@ std::vector<std::string> Helper::splitString(const std::string& str, const char 
             ans.push_back(part);
     }
 
+    if (ans[0].empty())
+    {
+        ans[0] = delim;
+    }
+
 	return ans;
 }
