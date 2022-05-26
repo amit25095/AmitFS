@@ -119,18 +119,12 @@ std::vector<std::string> Helper::splitString(const std::string& str, const char 
 	std::string part;
 	afsPath ans;
 
-    if (str.size() == 1 && str[0] == delim)
-        ans.push_back(str);
-
-    else
+  
+    while (std::getline(ss, part, delim))
     {
-        while (std::getline(ss, part, delim))
-            ans.push_back(part);
-    }
-
-    if (ans[0].empty())
-    {
-        ans[0] = delim;
+        ans.push_back(part);
+        if (ans[ans.size() - 1].empty())
+            ans[ans.size() - 1] = delim;
     }
 
 	return ans;
