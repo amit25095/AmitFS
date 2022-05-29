@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
+#include <iterator>
+#include <algorithm>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -128,4 +130,16 @@ std::vector<std::string> Helper::splitString(const std::string& str, const char 
     }
 
 	return ans;
+}
+
+std::string Helper::joinString(std::vector<std::string> vec, const std::string& delim)
+{
+    std::stringstream ss;
+
+    if (vec.size() == 1 && vec[0] == "/")
+        return "/";
+
+    std::copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(ss, delim.c_str()));
+
+    return ss.str();
 }

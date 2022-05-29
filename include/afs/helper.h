@@ -12,6 +12,7 @@ class Helper
 {
 public:
     static std::vector<std::string> splitString(const std::string& str, const char delim = '/');
+    static std::string joinString(std::vector<std::string> vec, const std::string& delim = "/");
 
     static address blockToAddr(uint32_t blockSize, unsigned int blockNum, unsigned int offset = 0);
     static unsigned int addrToBlock(uint32_t blockSize, address addr);

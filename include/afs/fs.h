@@ -17,6 +17,7 @@ private:
     struct afsHeader* m_header;
     BlocksTable* m_dblocksTable;
     inode m_cwd;
+    std::string m_cwdName;
     
     address inodeIndexToAddr(const int inodeIndex) const;
     address pathToAddr(const afsPath path) const;
@@ -29,8 +30,9 @@ private:
     void setHeader();
 
     void createCurrAndPrevDir(const unsigned int currentDirInode, const unsigned int prevDirInode);
-    void createInode(const inode node);
+    uint32_t createInode(const inode node);
     void addSibling(const address dirAddr, const dirSibling sibling);
+    uint32_t createDirectory(const std::string& path, inode fileInode);
 
 public:
     FileSystem(const char* filePath, uint32_t blockSize = 4096, uint32_t nblocks = 4096);

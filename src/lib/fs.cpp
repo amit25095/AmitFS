@@ -32,6 +32,7 @@ FileSystem::FileSystem(const char* filePath, uint32_t blockSize, uint32_t nblock
     }
 
     m_cwd = getRoot();
+    m_cwdName = "/";
 }
 
 FileSystem::~FileSystem()
@@ -68,10 +69,14 @@ void FileSystem::format()
  * @param path The path to create the file/directory in. 
  * @param isDir Boolean which tells us if the file is directory or not.
  */
-void FileSystem::createFile(const std::string& path, const bool isDir) {
+void FileSystem::createFile(const std::string& path, const bool isDir) 
+{
     afsPath parsedPath = Helper::splitString(path);
     address fileAddr = 0;
-    std::string fileName = parsedPath[parsedPath.size() - 1];
+    uint32_t inodeIndex;
+
+    if (parsedPath.size() > 1 && parsedPath[parsedPath.size() - 1] == "/")
+        parsedPath.pop_back();
 
     try
     {
@@ -81,45 +86,27 @@ void FileSystem::createFile(const std::string& path, const bool isDir) {
 
     if (fileAddr != 0) throw std::runtime_error("File with this name already exist");
 
+    std::string fileName = parsedPath[parsedPath.size() - 1];
+    std::string joinedPath = Helper::joinString(afsPath(parsedPath.begin(), parsedPath.end() - 1));
+
     // create inode for the file.
     inode fileInode(isDir);
 
-    if (!isDir) 
-        createInode(fileInode);
+    if (isDir)
+        inodeIndex = createDirectory(joinedPath.empty() ? path : joinedPath , fileInode);
 
-    // Create current directory(.) and parent directory(..)
-    // in case the file is a directory.
     else
-    {
-        unsigned int fileBlock = m_dblocksTable->getFreeBlock();
-        unsigned int currentInode = m_header->inodes, prevInode;
+        inodeIndex = createInode(fileInode);
 
-
-        m_dblocksTable->reserveDBlock(fileBlock);
-        fileInode.firstAddr = Helper::blockToAddr(m_disk->getBlockSize(), fileBlock);
-
-        createInode(fileInode);
-
-        if (path == "/")
-            prevInode = currentInode;
-
-        else
-        {
-            address prevParentAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 2));
-            dirSibling parent = getSiblingData(prevParentAddr, *(path.end() - 2));
-            prevInode = parent.indodeTableIndex;
-        }
-
-        createCurrAndPrevDir(currentInode, prevInode);
-    }
-
-    // Add the new file as a sibling to the parent directory.
     if (path != "/")
     {
-        address parentAddr = pathToAddr(afsPath(parsedPath.begin(), parsedPath.end() - 1));
-        dirSibling file(fileName.c_str(), m_header->inodes - 1);
+        afsPath relPath = Helper::splitString(m_cwdName + path);
+        afsPath parentPath = parsedPath[0] == "/" ? afsPath(parsedPath.begin(), parsedPath.end() - 1) : afsPath(relPath.begin(), relPath.end() - 1);
+        address parentAddr = pathToAddr(parentPath);
 
-        addSibling(parentAddr, file);
+        dirSibling child(fileName.c_str(), inodeIndex);
+
+        addSibling(parentAddr, child);
     }
 }
 
@@ -210,7 +197,6 @@ void FileSystem::deleteFile(const std::string& filePath)
     }
 
     m_disk->write(inodeIndexToAddr(fileInodeIdx), sizeof(inode), (const char*)&fileInode);
-
 
     address lastSiblingAddr = Helper::getSiblingAddr(parentAddress, data - 1);
 
@@ -320,12 +306,15 @@ void FileSystem::setHeader()
 *
 * @param node The inode to write to the disk.
 *
+* @return uint32_t The index of the created Indoe.
 */
-void FileSystem::createInode(const inode node)
+uint32_t FileSystem::createInode(const inode node)
 {
     m_disk->write(inodeIndexToAddr(m_header->inodes), sizeof(node), (const char*)&node);
     m_header->inodes++;
     m_disk->write(0, sizeof(struct afsHeader), (const char*)m_header);
+
+    return m_header->inodes - 1;
 }
 
 /**
@@ -430,7 +419,7 @@ address FileSystem::pathToAddr(afsPath path) const
     uint16_t i; 
     int j;
 
-    if (path[path.size() - 1] == "/")
+    if (path.size() != 1 && path[path.size() - 1] == "/")
         path.pop_back();
 
     curr = path[0] == "/" ? getRoot() : m_cwd;
@@ -573,4 +562,22 @@ inode FileSystem::pathToInode(const afsPath path) const
     m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&siblingInode);
 
     return siblingInode;
+}
+
+uint32_t FileSystem::createDirectory(const std::string& path, inode fileInode)
+{
+    fileInode.firstAddr = Helper::blockToAddr(m_disk->getBlockSize(), m_dblocksTable->getFreeBlock());
+    m_dblocksTable->reserveDBlock(Helper::addrToBlock(m_disk->getBlockSize(), fileInode.firstAddr));
+    uint32_t inodeIndex = createInode(fileInode);
+
+    if (path == "/")
+        createCurrAndPrevDir(inodeIndex, inodeIndex);
+
+    else
+    {
+        dirSibling parent = getSiblingData(pathToAddr(Helper::splitString(path + "/..")), ".");
+        createCurrAndPrevDir(inodeIndex, parent.indodeTableIndex);
+    }
+
+    return inodeIndex;
 }
