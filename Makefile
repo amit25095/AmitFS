@@ -4,8 +4,8 @@ LDFLAGS  =	-Llib
 AR       =	ar
 ARFLAGS	 =	rcs
 
-LIB_HEADERS=	$(wildcard include/sfs/*.h)
-LIB_SOURCE=	$(wildcard src/library/*.cpp)
+LIB_HEADERS=	$(wildcard include/afs/*.h)
+LIB_SOURCE=	$(wildcard src/lib/*.cpp)
 LIB_OBJECTS=	$(LIB_SOURCE:.cpp=.o)
 LIB_STATIC=	lib/libafs.a
 
