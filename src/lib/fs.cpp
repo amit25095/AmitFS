@@ -88,6 +88,8 @@ void FileSystem::createFile(const std::string& path, const bool isDir)
 
     std::string fileName = parsedPath[parsedPath.size() - 1];
     std::string joinedPath = Helper::joinString(afsPath(parsedPath.begin(), parsedPath.end() - 1));
+    if (joinedPath.substr(0, 2) == "//")
+        joinedPath = joinedPath.substr(1, joinedPath.size());
 
     // create inode for the file.
     inode fileInode(isDir);
@@ -181,23 +183,19 @@ void FileSystem::deleteFile(const std::string& filePath)
     int fileInodeIdx = getSiblingData(pathToAddr(afsPath(path.begin(), path.end() - 1)), path[path.size() - 1]).indodeTableIndex;
     inode fileInode = pathToInode(path);
 
-    address currentAddr = fileInode.firstAddr, parentAddress = pathToAddr(afsPath(path.begin(), path.end() - 1));
+    address parentAddress = pathToAddr(afsPath(path.begin(), path.end() - 1));
     directoryData data;
     dirSibling sibling, lastSibling;
 
     m_disk->read(parentAddress, sizeof(directoryData), (char*)&data);
 
+    if (fileInode.flags & DIRTYPE)
+        recursiveRemove(fileInode);
+
     fileInode.flags |= DELETED;
 
-    while (currentAddr != 0)
-    {
-        m_dblocksTable->freeDBlock(Helper::addrToBlock(m_disk->getBlockSize(), currentAddr));
-        m_disk->read(currentAddr + m_disk->getBlockSize() - 4, sizeof(address), (char*)&currentAddr);
-        m_disk->write(currentAddr + m_disk->getBlockSize() - 4, sizeof(address), (const char*)reset);
-    }
-
+    m_dblocksTable->freeAllFileBlocks(fileInode.firstAddr);
     m_disk->write(inodeIndexToAddr(fileInodeIdx), sizeof(inode), (const char*)&fileInode);
-
     address lastSiblingAddr = Helper::getSiblingAddr(parentAddress, data - 1);
 
     lastSibling = getSiblingData(parentAddress, data - 1);
@@ -214,7 +212,10 @@ void FileSystem::deleteFile(const std::string& filePath)
         }
     }
 
+    m_header->inodes--;
     m_disk->write(parentAddress, sizeof(directoryData), (const char*)&(--data));
+    m_disk->write(0, sizeof(*m_header), (const char*)m_header);
+
 }
 
 /**
@@ -413,39 +414,27 @@ dirSibling FileSystem::getSiblingData(const address dirAddr, const std::string& 
 address FileSystem::pathToAddr(afsPath path) const
 {
     inode curr;
-    directoryData data;
     directorySibling sibling;
 
-    uint16_t i; 
-    int j;
+    uint16_t i;
 
     if (path.size() != 1 && path[path.size() - 1] == "/")
         path.pop_back();
 
     curr = path[0] == "/" ? getRoot() : m_cwd;
 
-    m_disk->read(curr.firstAddr, sizeof(directoryData), (char*)&data);
-
     for(i = 1; i < path.size(); i++)
     {
-        for (j = 0; j < data; j++)
+        sibling = getSiblingData(curr.firstAddr, path[i]);
+        if (std::string(sibling.name) == path[i])
         {
-            sibling = getSiblingData(curr.firstAddr, j);
-            if (std::string(sibling.name) == path[i])
-            {
-                m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&curr);
-                if (i < path.size() - 1)
-                    m_disk->read(curr.firstAddr, sizeof(data), (char*)&data);
-                break;
-            }
+            m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&curr);
+            continue;
         }
-        if (j == data)
-            throw std::runtime_error(std::string("No such file exist with name: ") + path[i]);
         
         if(i != path.size() - 1 && !(curr.flags & DIRTYPE))
             throw std::runtime_error("path contains file that is not a directory.");
-    } 
-
+    }
 
     return curr.firstAddr;
 }
@@ -564,11 +553,14 @@ inode FileSystem::pathToInode(const afsPath path) const
     return siblingInode;
 }
 
-uint32_t FileSystem::createDirectory(const std::string& path, inode fileInode)
+uint32_t FileSystem::createDirectory(std::string path, inode fileInode)
 {
     fileInode.firstAddr = Helper::blockToAddr(m_disk->getBlockSize(), m_dblocksTable->getFreeBlock());
     m_dblocksTable->reserveDBlock(Helper::addrToBlock(m_disk->getBlockSize(), fileInode.firstAddr));
     uint32_t inodeIndex = createInode(fileInode);
+
+    if ( path.size() > 1 && path[path.size() - 1] == '/')
+        path = path.substr(0, path.size() - 1);
 
     if (path == "/")
         createCurrAndPrevDir(inodeIndex, inodeIndex);
@@ -580,4 +572,33 @@ uint32_t FileSystem::createDirectory(const std::string& path, inode fileInode)
     }
 
     return inodeIndex;
+}
+
+void FileSystem::recursiveRemove(inode dirInode)
+{
+    directoryData data, reset = 0;
+    dirSibling currentSibling;
+    inode currentSiblingInode;
+    address inodeAddr;
+
+    m_disk->read(dirInode.firstAddr, sizeof(data), (char*)&data);
+    m_disk->write(dirInode.firstAddr, sizeof(data), (char*)&reset);
+
+    for (int i = 2; i < data; i++) // skip .. and . files.
+    {
+        currentSibling = getSiblingData(dirInode.firstAddr, i);
+        inodeAddr = inodeIndexToAddr(currentSibling.indodeTableIndex);
+        m_disk->read(inodeAddr, sizeof(inode), (char*)&currentSiblingInode);
+        
+        if (currentSiblingInode.flags & DIRTYPE)
+            recursiveRemove(currentSiblingInode);
+
+        if (currentSiblingInode.firstAddr != (address)-1)
+            m_dblocksTable->freeAllFileBlocks(currentSiblingInode.firstAddr);
+
+        currentSiblingInode.flags |= DELETED;
+
+        m_disk->write(inodeAddr, sizeof(inode), (const char*)&currentSiblingInode);
+        m_header->inodes--;
+    }
 }

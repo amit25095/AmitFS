@@ -3,6 +3,7 @@
 #define DBLOCKS_TABLE_BLOCK_INDX 1
 
 #include <afs/disk.h>
+#include <afs/constants.h>
 
 class BlocksTable
 {
@@ -20,4 +21,6 @@ public:
 
     void reserveDBlock(const unsigned int blockNum);
     void freeDBlock(const unsigned int blockNum);
+
+    void freeAllFileBlocks(const address fileAddress);
 };

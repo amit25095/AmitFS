@@ -136,8 +136,8 @@ std::string Helper::joinString(std::vector<std::string> vec, const std::string& 
 {
     std::stringstream ss;
 
-    if (vec.size() == 1 && vec[0] == "/")
-        return "/";
+    if (vec.size() == 1 && vec[0] == delim)
+        return delim;
 
     std::copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(ss, delim.c_str()));
 
