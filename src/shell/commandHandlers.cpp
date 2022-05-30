@@ -8,7 +8,6 @@
 
 handlers CommandHandlers::handlersMap = {
     {"ls",    CommandHandlers::listFiles},
-    {"cd",    CommandHandlers::changeDirectory},
     {"rm",    CommandHandlers::removeFile},
     {"cat",   CommandHandlers::showContent},
     {"edit",  CommandHandlers::addContent},
@@ -101,9 +100,4 @@ void CommandHandlers::showContent(FileSystem* fs, args argv)
 
     if (!content.empty())
         std::cout << '\n';
-}
-
-void CommandHandlers::changeDirectory(FileSystem* fs, args argv)
-{
-    
 }

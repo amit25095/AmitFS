@@ -30,9 +30,6 @@ FileSystem::FileSystem(const char* filePath, uint32_t blockSize, uint32_t nblock
         m_disk = new Disk(filePath, m_header->blockSize, m_header->nblocks);
         m_dblocksTable = new BlocksTable(m_disk);
     }
-
-    m_cwd = getRoot();
-    m_cwdName = "/";
 }
 
 FileSystem::~FileSystem()
@@ -102,8 +99,7 @@ void FileSystem::createFile(const std::string& path, const bool isDir)
 
     if (path != "/")
     {
-        afsPath relPath = Helper::splitString(m_cwdName + path);
-        afsPath parentPath = parsedPath[0] == "/" ? afsPath(parsedPath.begin(), parsedPath.end() - 1) : afsPath(relPath.begin(), relPath.end() - 1);
+        afsPath parentPath = afsPath(parsedPath.begin(), parsedPath.end() - 1);
         address parentAddr = pathToAddr(parentPath);
 
         dirSibling child(fileName.c_str(), inodeIndex);
@@ -178,6 +174,8 @@ void FileSystem::appendContent(const std::string& filePath, std::string content)
  */
 void FileSystem::deleteFile(const std::string& filePath)
 {
+    if (filePath == "/") throw std::runtime_error("Cannot remove root directory!");
+    
     char reset[sizeof(dirSibling)] = { 0 };
     afsPath path = Helper::splitString(filePath);
     int fileInodeIdx = getSiblingData(pathToAddr(afsPath(path.begin(), path.end() - 1)), path[path.size() - 1]).indodeTableIndex;
@@ -186,6 +184,7 @@ void FileSystem::deleteFile(const std::string& filePath)
     address parentAddress = pathToAddr(afsPath(path.begin(), path.end() - 1));
     directoryData data;
     dirSibling sibling, lastSibling;
+
 
     m_disk->read(parentAddress, sizeof(directoryData), (char*)&data);
 
@@ -232,6 +231,8 @@ std::string FileSystem::getContent(const std::string &filePath) const
     std::string fileContent = "", temp = "";
     uint32_t size = fileInode.fileSize, blockSize = m_disk->getBlockSize();
     char* buffer = new char[blockSize - sizeof(address)];
+
+    if (fileInode.flags & DIRTYPE) throw std::runtime_error("cant read content from directory");
 
     while (currentAddress != 0)
     {
@@ -421,16 +422,13 @@ address FileSystem::pathToAddr(afsPath path) const
     if (path.size() != 1 && path[path.size() - 1] == "/")
         path.pop_back();
 
-    curr = path[0] == "/" ? getRoot() : m_cwd;
+    curr = getRoot();
 
     for(i = 1; i < path.size(); i++)
     {
         sibling = getSiblingData(curr.firstAddr, path[i]);
-        if (std::string(sibling.name) == path[i])
-        {
-            m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&curr);
-            continue;
-        }
+
+        m_disk->read(inodeIndexToAddr(sibling.indodeTableIndex), sizeof(inode), (char*)&curr);
         
         if(i != path.size() - 1 && !(curr.flags & DIRTYPE))
             throw std::runtime_error("path contains file that is not a directory.");

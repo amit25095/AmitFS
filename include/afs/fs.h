@@ -16,8 +16,6 @@ private:
     Disk* m_disk;
     struct afsHeader* m_header;
     BlocksTable* m_dblocksTable;
-    inode m_cwd;
-    std::string m_cwdName;
     
     address inodeIndexToAddr(const int inodeIndex) const;
     address pathToAddr(const afsPath path) const;
