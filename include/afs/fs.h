@@ -32,7 +32,8 @@ private:
     void createCurrAndPrevDir(const unsigned int currentDirInode, const unsigned int prevDirInode);
     uint32_t createInode(const inode node);
     void addSibling(const address dirAddr, const dirSibling sibling);
-    uint32_t createDirectory(const std::string& path, inode fileInode);
+    uint32_t createDirectory(std::string path, inode fileInode);
+    void recursiveRemove(inode dirInode);
 
 public:
     FileSystem(const char* filePath, uint32_t blockSize = 4096, uint32_t nblocks = 4096);

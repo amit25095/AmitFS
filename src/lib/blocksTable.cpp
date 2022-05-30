@@ -1,6 +1,5 @@
 #include <afs/blocksTable.h>
 #include <afs/helper.h>
-#include <afs/constants.h>
 
 BlocksTable::BlocksTable(Disk* disk, const bool isNew):
     m_disk(disk)
@@ -68,4 +67,19 @@ void BlocksTable::freeDBlock(const unsigned int blockNum)
 {
     m_table[blockNum] = false;
     m_disk->write(Helper::blockToAddr(m_disk->getBlockSize(), 1, blockNum), sizeof(bool), (const char*)(m_table + blockNum));
+}
+
+void BlocksTable::freeAllFileBlocks(const address fileAddr)
+{
+    address currentAddr = fileAddr, prevAddr;
+    uint32_t blockSize = m_disk->getBlockSize();
+    const char reset[sizeof(address)] = { 0 };
+
+    while (currentAddr != 0)
+    {
+        prevAddr = currentAddr;
+        freeDBlock(Helper::addrToBlock(blockSize, currentAddr));
+        m_disk->read(currentAddr + blockSize - sizeof(address), sizeof(address), (char*)&currentAddr);
+        m_disk->write(prevAddr + blockSize - sizeof(address), sizeof(address), reset);
+    }
 }
