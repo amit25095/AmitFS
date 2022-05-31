@@ -540,6 +540,10 @@ inode FileSystem::pathToInode(const afsPath path) const
         return getRoot();
 
     afsPath parentPath = afsPath(path.begin(), path.end() - 1);
+
+    if (parentPath.empty())
+        parentPath.push_back("/");
+
     address parentAddr = pathToAddr(parentPath);
 
     dirSibling sibling = getSiblingData(parentAddr, path[path.size() - 1]);
