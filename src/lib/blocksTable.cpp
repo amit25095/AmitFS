@@ -75,6 +75,9 @@ void BlocksTable::freeAllFileBlocks(const address fileAddr)
     uint32_t blockSize = m_disk->getBlockSize();
     const char reset[sizeof(address)] = { 0 };
 
+    if (fileAddr == (address)-1)
+        return;
+
     while (currentAddr != 0)
     {
         prevAddr = currentAddr;

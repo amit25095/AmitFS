@@ -384,25 +384,32 @@ dirSibling FileSystem::getSiblingData(const address dirAddr, const int indx) con
  */
 dirSibling FileSystem::getSiblingData(const address dirAddr, const std::string& siblingName) const
 {
-    dirSibling sibling;
+    dirSibling currentSibling;
     directoryData data;
-    bool found = false;
+    std::string currentSiblingName;
 
     m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
 
-    for (uint16_t i = 0; i < data && !found; i++)
+    int start = 0, end = data - 1, mid = start + (end - start) / 2;
+
+    while (end >= start)
     {
-        sibling = getSiblingData(dirAddr, i);
-        if (strncmp(sibling.name, siblingName.c_str(), sizeof(sibling.name)) == 0)
-            found = true;
+        currentSibling = getSiblingData(dirAddr, mid);
+        currentSiblingName = currentSibling.name;
+
+        if (siblingName > currentSiblingName)
+            start = mid + 1;
+
+        else if (siblingName < currentSiblingName)
+            end = mid - 1;
+
+        else
+            return getSiblingData(dirAddr, mid);
+
+        mid = start + (start - end) / 2;
     }
 
-    if (!found)
-    {
-        throw std::runtime_error(std::string("could not find file: ") + siblingName);
-    }
-
-    return sibling;
+    throw std::runtime_error(std::string("could not find file: ") + siblingName);
 }
 
 /**
@@ -474,24 +481,34 @@ address FileSystem::getFreeDirChunkAddr(const address dirAddr)
 void FileSystem::addSibling(const address dirAddr, const dirSibling sibling)
 {
     directoryData data;
-    address currentAddress = dirAddr;
-    uint16_t maxSiblingsPerBlock = (m_disk->getBlockSize() - sizeof(directoryData) - sizeof(address)) / sizeof(dirSibling);
+    std::string nameToAdd = sibling.name, currentSiblingName;
+    dirSibling currentSibling;
 
-    unsigned int dirBlocks;
+    m_disk->read(dirAddr, sizeof(data), (char*)&data);
 
-    m_disk->read(dirAddr, sizeof(directoryData), (char*)&data);
-    currentAddress = Helper::getLastFileBlock(m_disk, currentAddress);
+    int start = 0, end = data - 1, mid = start + (end - start) / 2;
 
-    dirBlocks = floor(data / maxSiblingsPerBlock) + 1;
-    if (data + 1 > (uint16_t)(maxSiblingsPerBlock * dirBlocks))
+    while (end >= start)
     {
-        unsigned int nextBlock = m_dblocksTable->getFreeBlock();
-        address nextBlockAddr = Helper::blockToAddr(m_disk->getBlockSize(), currentAddress);
-        m_dblocksTable->reserveDBlock(nextBlock);
-        m_disk->write(currentAddress + m_disk->getBlockSize() - sizeof(address), sizeof(address), (const char*)&nextBlockAddr);
+        currentSibling = getSiblingData(dirAddr, mid);
+        currentSiblingName = currentSibling.name;
+
+        if (nameToAdd > currentSiblingName)
+            start = mid + 1;
+
+        else if (nameToAdd < currentSiblingName)
+            end = mid - 1;
+
+        else
+            throw std::runtime_error("file with this name already exist");
+
+        mid = start + (start - end) / 2;
     }
 
-    m_disk->write(getFreeDirChunkAddr(dirAddr), sizeof(dirSibling), (const char*)&sibling);
+    char* buffer = new char[sizeof(dirSibling) * (data - mid)];
+    m_disk->read(dirAddr + sizeof(data) + (sizeof(dirSibling) * mid), sizeof(dirSibling) * (data - mid), buffer);
+    m_disk->write(dirAddr + sizeof(data) + (sizeof(dirSibling) * (mid + 1)), sizeof(dirSibling) * (data - mid), buffer);
+    m_disk->write(dirAddr + sizeof(data) + (sizeof(directorySibling) * mid), sizeof(directorySibling), (const char*)&sibling);
     m_disk->write(dirAddr, sizeof(directoryData), (const char*)&(++data));
 }
 

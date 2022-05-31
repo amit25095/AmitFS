@@ -33,6 +33,8 @@ private:
     uint32_t createDirectory(std::string path, inode fileInode);
     void recursiveRemove(inode dirInode);
 
+    int getSiblingIndex(address dirAddr, const std::string& fileName);
+
 public:
     FileSystem(const char* filePath, uint32_t blockSize = 4096, uint32_t nblocks = 4096);
     ~FileSystem();
